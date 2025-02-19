@@ -1,12 +1,12 @@
 # Used by `image`, `push` & `deploy` targets, override as required
-IMAGE_REG ?= ghcr.io
-IMAGE_REPO ?= benc-uk/python-demoapp
+IMAGE_REG ?= docker.io
+IMAGE_REPO ?= cchahi/my-python-app
 IMAGE_TAG ?= latest
 
-# Used by `deploy` target, sets Azure webap defaults, override as required
-AZURE_RES_GROUP ?= temp-demoapps
-AZURE_REGION ?= uksouth
-AZURE_SITE_NAME ?= pythonapp-$(shell git rev-parse --short HEAD)
+# Used by `deploy` target, sets Kubernetes defaults, override as required
+K8S_CLUSTER ?= minikube
+K8S_DEPLOYMENT_FILE ?= k8s/python-demoapp-deployment.yaml
+K8S_SERVICE_FILE ?= k8s/python-demoapp-service.yaml
 
 # Used by `test-api` target
 TEST_HOST ?= localhost:5000
@@ -18,7 +18,7 @@ SRC_DIR := src
 .DEFAULT_GOAL := help
 
 help:  ## 💬 This help message
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*? ## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 lint: venv  ## 🔎 Lint & format, will not fix but sets exit code on error 
 	. $(SRC_DIR)/.venv/bin/activate \
@@ -40,17 +40,22 @@ run: venv  ## 🏃 Run the server locally using Python & Flask
 	. $(SRC_DIR)/.venv/bin/activate \
 	&& python src/run.py
 
-deploy:  ## 🚀 Deploy to Azure Web App 
-	az group create --resource-group $(AZURE_RES_GROUP) --location $(AZURE_REGION) -o table
-	az deployment group create --template-file deploy/webapp.bicep \
-		--resource-group $(AZURE_RES_GROUP) \
-		--parameters webappName=$(AZURE_SITE_NAME) \
-		--parameters webappImage=$(IMAGE_REG)/$(IMAGE_REPO):$(IMAGE_TAG) -o table 
-	@echo "### 🚀 Web app deployed to https://$(AZURE_SITE_NAME).azurewebsites.net/"
+deploy:  ## 🚀 Deploy to Kubernetes (Minikube) 
+	# Set the Kubernetes context to Minikube
+	@echo "### Setting Kubernetes context to Minikube"
+	@kubectl config use-context $(K8S_CLUSTER)
 
-undeploy:  ## 💀 Remove from Azure 
-	@echo "### WARNING! Going to delete $(AZURE_RES_GROUP) 😲"
-	az group delete -n $(AZURE_RES_GROUP) -o table --no-wait
+	# Deploy the app using the Kubernetes manifest files
+	@echo "### Deploying to Kubernetes"
+	@kubectl apply -f $(K8S_DEPLOYMENT_FILE)
+	@kubectl apply -f $(K8S_SERVICE_FILE)
+
+	@echo "### 🚀 Web app deployed. Verify deployment using kubectl get pods and kubectl get svc"
+
+undeploy:  ## 💀 Remove from Kubernetes (Minikube) 
+	@echo "### WARNING! Going to delete the app from the Kubernetes cluster 😲"
+	@kubectl delete -f $(K8S_DEPLOYMENT_FILE)
+	@kubectl delete -f $(K8S_SERVICE_FILE)
 
 test: venv  ## 🎯 Unit tests for Flask app
 	. $(SRC_DIR)/.venv/bin/activate \
@@ -83,3 +88,4 @@ $(SRC_DIR)/.venv/touchfile: $(SRC_DIR)/requirements.txt
 	python3 -m venv $(SRC_DIR)/.venv
 	. $(SRC_DIR)/.venv/bin/activate; pip install -Ur $(SRC_DIR)/requirements.txt
 	touch $(SRC_DIR)/.venv/touchfile
+
