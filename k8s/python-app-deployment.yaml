@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: python-demoapp
+  name: python-app
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: python-demoapp
+      app: python-app
   template:
     metadata:
       labels:
-        app: python-demoapp
+        app: python-app
     spec:
       containers:
-      - name: python-demoapp
-        image: ghcr.io/benc-uk/python-demoapp:latest
+      - name: python-oapp
+        image: docker.io/cchahi/python-app:latest
         ports:
         - containerPort: 5000
 
