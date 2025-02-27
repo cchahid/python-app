@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: python-oapp
-        image: docker.io/cchahi/python-app:latest
+        image: docker.io/cchahi/python-app:${IMAGE_VERSION}
         ports:
         - containerPort: 5000
 
